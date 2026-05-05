@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+
+# Kotlin compiler cache
+.kotlin/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# macOS
+.DS_Store
+
+# Claude Code project metadata
+.claude/
+
+# Editor swap/temp
+*.swp
+*.tmp
+*.bak
