@@ -31,7 +31,7 @@ Build and test:
 ## What makes it solid
 
 - **Failed downloads leave no half-written files.** Bytes go to `<dest>.part`; on success, an atomic rename to `<dest>`. On failure, the temp is removed and the destination is untouched. Either it's byte-perfect or it doesn't exist.
-- **Transient server hiccups are absorbed automatically.** Per-chunk retry with full-jitter exponential backoff covers 408/429/500/502/503/504 and `IOException`. `Retry-After` from the server overrides the computed backoff. Non-retryable failures surface immediately instead of burning attempts.
+- **Transient server hiccups are absorbed automatically.** Per-request retry (HEAD probe and each chunk GET) with full-jitter exponential backoff covers 408/429/500/502/503/504 and `IOException`. `Retry-After` from the server overrides the computed backoff. Non-retryable failures surface immediately instead of burning attempts.
 - **Stalled or unreachable servers fail fast with a clear error.** Explicit connect, socket, and request timeouts (10s / 30s / 60s by default) bound every phase of the exchange. No silent hangs.
 - **Bounded memory regardless of file size.** Chunk bodies stream through a 64 KiB buffer with a `maxBytes` cap, so a 20 GiB download has the same memory footprint as a 20 MiB one. No buffering of full responses.
 - **The server can't corrupt the output by lying about ranges.** `Content-Range` is parsed and validated against the requested range and total length on every chunk; a mismatched, malformed, or missing header fails the chunk with a typed exception before any bytes are written outside its reserved region.
@@ -64,11 +64,11 @@ src/main/kotlin/
 
 ## Testing
 
-34 unit tests, ~2 seconds warm:
+36 unit tests, ~1 second warm:
 
 | Class            | Tests | What it covers                                                                                  |
 |------------------|------:|-------------------------------------------------------------------------------------------------|
-| `DownloaderTest` |    23 | end-to-end downloads against Ktor `MockEngine`: happy paths, Content-Range edge cases, retry behavior, atomic cleanup |
+| `DownloaderTest` |    25 | end-to-end downloads against Ktor `MockEngine`: happy paths, Content-Range edge cases, retry behavior (HEAD probe + chunks), atomic cleanup |
 | `PlannerTest`    |     9 | property-style coverage: chunks are contiguous, non-overlapping, sum to total length            |
 | `ClientTest`     |     2 | `TimeoutConfig` validation                                                                      |
 

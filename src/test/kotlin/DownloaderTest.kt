@@ -503,6 +503,42 @@ class DownloaderTest {
     }
 
     @Test
+    fun `HEAD probe retries on 503 then succeeds`() = runTest {
+        val payload = Random(20).nextBytes(256)
+        val heads = AtomicInteger(0)
+        mockClient { req ->
+            when (req.method) {
+                HttpMethod.Head -> {
+                    if (heads.incrementAndGet() == 1) {
+                        respond(ByteArray(0), HttpStatusCode.ServiceUnavailable)
+                    } else {
+                        headOk(payload.size.toLong())
+                    }
+                }
+                HttpMethod.Get -> serve(payload, req)
+                else -> error(req.method)
+            }
+        }.use { client ->
+            download(client, "http://test/x", dest(), chunkSize = 256)
+        }
+        assertEquals(2, heads.get())
+    }
+
+    @Test
+    fun `HEAD probe IOException is wrapped as DownloadException`() = runTest {
+        mockClient { _ -> throw java.io.IOException("simulated network failure") }.use { client ->
+            assertFailsWith<RetriesExhausted> {
+                download(
+                    client = client,
+                    url = "http://test/x",
+                    destination = dest(),
+                    retryPolicy = RetryPolicy(maxAttempts = 1),
+                )
+            }
+        }
+    }
+
+    @Test
     fun `Retry-After header is honored over backoff`() = runTest {
         val payload = Random(8).nextBytes(256)
         val gets = AtomicInteger(0)

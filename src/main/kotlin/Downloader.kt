@@ -37,7 +37,7 @@ suspend fun download(
     require(chunkSize > 0)   { "chunkSize must be > 0, got $chunkSize" }
     require(parallelism > 0) { "parallelism must be > 0, got $parallelism" }
 
-    val meta = fetchMetadata(client, url)
+    val meta = retrying(retryPolicy, "HEAD probe") { fetchMetadata(client, url) }
     if (!meta.acceptsRanges) {
         throw RangesUnsupported("Server does not advertise Accept-Ranges: bytes")
     }
@@ -79,13 +79,13 @@ private suspend fun downloadChunk(
     retryPolicy: RetryPolicy,
     totalLength: Long,
 ) {
-    retrying(retryPolicy, chunk.index) {
+    retrying(retryPolicy, "chunk ${chunk.index}") {
         val resp: HttpResponse = client.get(url) {
             header(HttpHeaders.Range, "bytes=${chunk.start}-${chunk.endInclusive}")
         }
         if (resp.status != HttpStatusCode.PartialContent) {
             val retryAfterMs = if (resp.status.value == 429 || resp.status.value == 503) {
-                parseRetryAfterSeconds(resp.headers[HttpHeaders.RetryAfter], chunk.index)
+                parseRetryAfterSeconds(resp.headers[HttpHeaders.RetryAfter], "chunk ${chunk.index}")
             } else null
             throw UnexpectedStatus(
                 status = resp.status,

@@ -29,11 +29,11 @@ internal fun isRetryable(t: Throwable): Boolean = when (t) {
 
 private val log: Logger = LoggerFactory.getLogger("Downloader")
 
-internal fun parseRetryAfterSeconds(raw: String?, chunkIndex: Int): Long? {
+internal fun parseRetryAfterSeconds(raw: String?, label: String): Long? {
     if (raw == null) return null
     val seconds = raw.toLongOrNull()
     if (seconds == null) {
-        log.warn("Chunk {}: unparseable Retry-After header '{}', falling back to backoff", chunkIndex, raw)
+        log.warn("{}: unparseable Retry-After header '{}', falling back to backoff", label, raw)
         return null
     }
     return seconds * 1000
@@ -41,7 +41,7 @@ internal fun parseRetryAfterSeconds(raw: String?, chunkIndex: Int): Long? {
 
 internal suspend fun <T> retrying(
     policy: RetryPolicy,
-    chunkIndex: Int,
+    label: String,
     block: suspend () -> T,
 ): T {
     var attempt = 0
@@ -61,8 +61,8 @@ internal suspend fun <T> retrying(
         }
         val waitMs = retryAfterMs ?: nextBackoffMs(policy, attempt)
         log.warn(
-            "Chunk {} attempt {}/{} failed ({}), retrying in {}ms",
-            chunkIndex, attempt, policy.maxAttempts, failure.message, waitMs,
+            "{} attempt {}/{} failed ({}), retrying in {}ms",
+            label, attempt, policy.maxAttempts, failure.message, waitMs,
         )
         delay(waitMs)
     }

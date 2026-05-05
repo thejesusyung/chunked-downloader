@@ -11,8 +11,8 @@ suspend fun main(args: Array<String>) {
         createDownloadClient().use { client ->
             download(client, url, Paths.get(dest))
         }
-    } catch (e: DownloadException) {
-        System.err.println("Download failed: ${e.message}")
+    } catch (e: Exception) {
+        System.err.println("Download failed: ${e.message ?: e::class.simpleName}")
         exitProcess(1)
     }
 }
