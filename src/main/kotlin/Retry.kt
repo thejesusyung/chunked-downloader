@@ -12,10 +12,12 @@ data class RetryPolicy(
     val maxDelayMs: Long = 30_000,
 ) {
     init {
-        require(maxAttempts >= 1) { "maxAttempts must be >= 1, got $maxAttempts" }
-        require(baseDelayMs >= 0) { "baseDelayMs must be >= 0, got $baseDelayMs" }
-        require(factor >= 1.0)    { "factor must be >= 1.0, got $factor" }
-        require(maxDelayMs >= 0)  { "maxDelayMs must be >= 0, got $maxDelayMs" }
+        require(maxAttempts >= 1)            { "maxAttempts must be >= 1, got $maxAttempts" }
+        require(baseDelayMs >= 0)            { "baseDelayMs must be >= 0, got $baseDelayMs" }
+        require(factor >= 1.0)               { "factor must be >= 1.0, got $factor" }
+        // Upper bound prevents `Random.nextLong(maxDelayMs + 1L)` from overflowing in nextBackoffMs
+        // and caps any pathological Retry-After to a sane wait.
+        require(maxDelayMs in 0..86_400_000) { "maxDelayMs must be in 0..86400000 ms (1 day), got $maxDelayMs" }
     }
 }
 
@@ -34,6 +36,12 @@ internal fun parseRetryAfterSeconds(raw: String?, label: String): Long? {
     val seconds = raw.toLongOrNull()
     if (seconds == null) {
         log.warn("{}: unparseable Retry-After header '{}', falling back to backoff", label, raw)
+        return null
+    }
+    // Reject negatives (delay(negative) is a no-op → hot-spin) and absurdly large values
+    // (would overflow `seconds * 1000` and/or wedge the download).
+    if (seconds < 0 || seconds > 86_400) {
+        log.warn("{}: Retry-After '{}' out of range (expect 0..86400 seconds), falling back to backoff", label, raw)
         return null
     }
     return seconds * 1000

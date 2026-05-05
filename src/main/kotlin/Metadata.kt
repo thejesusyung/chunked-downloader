@@ -15,10 +15,11 @@ suspend fun fetchMetadata(client: HttpClient, url: String): FileMetadata {
             message = "HEAD $url -> ${resp.status}",
         )
     }
-    val length = resp.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+    val rawLength = resp.headers[HttpHeaders.ContentLength]
+    val length = rawLength?.toLongOrNull()?.takeIf { it >= 0 }
         ?: throw MetadataMissing(
             header = HttpHeaders.ContentLength,
-            message = "HEAD response missing Content-Length",
+            message = "HEAD response missing or invalid Content-Length: '$rawLength'",
         )
     val acceptsRanges = resp.headers[HttpHeaders.AcceptRanges]
         ?.equals("bytes", ignoreCase = true) == true

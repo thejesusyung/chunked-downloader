@@ -64,12 +64,13 @@ src/main/kotlin/
 
 ## Testing
 
-36 unit tests, ~1 second warm:
+44 unit tests, ~1 second warm:
 
 | Class            | Tests | What it covers                                                                                  |
 |------------------|------:|-------------------------------------------------------------------------------------------------|
-| `DownloaderTest` |    25 | end-to-end downloads against Ktor `MockEngine`: happy paths, Content-Range edge cases, retry behavior (HEAD probe + chunks), atomic cleanup |
+| `DownloaderTest` |    26 | end-to-end downloads against Ktor `MockEngine`: happy paths, Content-Range edge cases, retry behavior (HEAD probe + chunks), atomic cleanup, Content-Length validation |
 | `PlannerTest`    |     9 | property-style coverage: chunks are contiguous, non-overlapping, sum to total length            |
+| `RetryTest`      |     7 | `parseRetryAfterSeconds` edge cases (negative, oversize, unparseable) and `RetryPolicy` validation |
 | `ClientTest`     |     2 | `TimeoutConfig` validation                                                                      |
 
 Retry tests use `kotlinx-coroutines-test` virtual time, so backoff sleeps don't slow the suite. A separate Docker httpd end-to-end check (`docker run httpd:latest` + 20 MiB urandom payload + `cmp`) confirmed byte-perfect output against real Apache; that check lives in the Quick start above rather than the gradle suite because it requires Docker.

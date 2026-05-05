@@ -228,6 +228,28 @@ class DownloaderTest {
     }
 
     @Test
+    fun `negative Content-Length throws MetadataMissing`() = runTest {
+        // Without the >= 0 filter, RandomAccessFile.setLength(-1) throws an untyped IOException
+        // that escapes the typed DownloadException contract.
+        mockClient { req ->
+            require(req.method == HttpMethod.Head)
+            respond(
+                ByteArray(0),
+                HttpStatusCode.OK,
+                Headers.build {
+                    append(HttpHeaders.AcceptRanges, "bytes")
+                    append(HttpHeaders.ContentLength, "-1")
+                },
+            )
+        }.use { client ->
+            val ex = assertFailsWith<MetadataMissing> {
+                download(client, "http://test/x", dest())
+            }
+            assertEquals("Content-Length", ex.header)
+        }
+    }
+
+    @Test
     fun `body length mismatch throws`() = runTest {
         mockClient { req ->
             when (req.method) {
